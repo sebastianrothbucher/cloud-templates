@@ -1,31 +1,46 @@
-resource "aws_apigatewayv2_api" "lambda-nest-dev-gw" {
+resource "aws_api_gateway_rest_api" "lambda-nest-dev-gw" {
   name = "nest-dev-gw"
-  protocol_type = "HTTP"
 }
 
-resource "aws_apigatewayv2_stage" "lambda-nest-dev-gw-stage" {
-  api_id = aws_apigatewayv2_api.lambda-nest-dev-gw.id
-  name = "nest-dev-stage"
-  auto_deploy = true
+resource "aws_api_gateway_resource" "lambda-nest-dev-gw-res" {
+  rest_api_id = aws_api_gateway_rest_api.lambda-nest-dev-gw.id
+  parent_id =  aws_api_gateway_rest_api.lambda-nest-dev-gw.root_resource_id
+  path_part = "{proxy+}"
 }
 
-resource "aws_apigatewayv2_integration" "lambda-nest-dev-gw-int" {
-  api_id = aws_apigatewayv2_api.lambda-nest-dev-gw.id
-  integration_uri = aws_lambda_function.nest-lambda.invoke_arn
-  integration_type = "AWS_PROXY"
-  integration_method = "POST"
+resource "aws_api_gateway_method" "lambda-nest-dev-gw-mth" {
+  rest_api_id = aws_api_gateway_rest_api.lambda-nest-dev-gw.id
+  resource_id = aws_api_gateway_resource.lambda-nest-dev-gw-res.id
+  http_method = "ANY"
+  authorization = "NONE"
 }
 
-resource "aws_apigatewayv2_route" "lambda-nest-dev-gw-cachall" {
-  api_id = aws_apigatewayv2_api.lambda-nest-dev-gw.id
-  route_key = "ANY /{proxy+}"
-  target = "integrations/${aws_apigatewayv2_integration.lambda-nest-dev-gw-int.id}"
+resource "aws_api_gateway_integration" "lambda-nest-dev-gw-lambda" {
+  rest_api_id = aws_api_gateway_rest_api.lambda-nest-dev-gw.id
+  resource_id = aws_api_gateway_method.lambda-nest-dev-gw-mth.resource_id
+  http_method = aws_api_gateway_method.lambda-nest-dev-gw-mth.http_method
+
+  integration_http_method = "POST"
+  type = "AWS_PROXY"
+  uri = aws_lambda_function.nest-lambda.invoke_arn
+}
+
+resource "aws_api_gateway_deployment" "lambda-nest-dev-gw-deploy" {
+  depends_on = [
+    aws_api_gateway_integration.lambda-nest-dev-gw-lambda
+  ]
+
+  rest_api_id = aws_api_gateway_rest_api.lambda-nest-dev-gw.id
+  stage_name = "nest-dev-stage"
 }
 
 resource "aws_lambda_permission" "lambda-nest-dev-gw-perm" {
-  statement_id = "AllowExecutionFromAPIGateway"
+  statement_id = "AllowAPIGatewayInvoke"
   action = "lambda:InvokeFunction"
   function_name = aws_lambda_function.nest-lambda.function_name
   principal = "apigateway.amazonaws.com"
-  source_arn = "${aws_apigatewayv2_api.lambda-nest-dev-gw.execution_arn}/*/*"
+
+  # The /*/* portion grants access from any method on any resource
+  # within the API Gateway "REST API".
+  source_arn = "${aws_api_gateway_rest_api.lambda-nest-dev-gw.execution_arn}/*/*"
 }

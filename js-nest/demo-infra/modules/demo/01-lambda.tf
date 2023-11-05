@@ -38,5 +38,11 @@ resource "aws_lambda_function" "nest-lambda" {
 
   timeout = 30
 
+  environment {
+    variables = {
+      TEST_VAR = "${var.test-env-val}"
+    }
+  }
+
   role = aws_iam_role.nest-lambda-role.arn
 }
