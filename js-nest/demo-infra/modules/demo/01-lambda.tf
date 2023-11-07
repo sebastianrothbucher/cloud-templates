@@ -34,7 +34,7 @@ resource "aws_lambda_function" "nest-lambda" {
   runtime = "nodejs16.x"
   handler = "main.handler"
 
-  source_code_hash = sha256(filebase64("../../../demo/dist-lambda/nest-lambda.zip"))
+  source_code_hash = filebase64sha256("../../../demo/dist-lambda/nest-lambda.zip")
 
   timeout = 30
 
