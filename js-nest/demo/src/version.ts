@@ -1,0 +1,1 @@
+export const APP_VERSION = 'dev'; // automatically overwritten before build
