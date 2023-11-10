@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "build": "nest build",
-    "build:lambda": "npm ci && npm run build && rm -rf node_modules && npm ci --omit dev && rm -rf dist-lambda && mkdir dist-lambda && zip -r dist-lambda/nest-lambda.zip node_modules && cd dist && zip -ur ../dist-lambda/nest-lambda.zip * && cd .. && npm ci",
+    "build:prep": "npm ci && npm run build && rm -rf node_modules && npm ci --omit dev",
+    "build:lambda": "npm run build:prep && rm -rf dist-lambda && mkdir dist-lambda && zip -r dist-lambda/nest-lambda.zip node_modules && cd dist && zip -ur ../dist-lambda/nest-lambda.zip * && cd .. && npm ci",
+    "build:dockerize": "npm run build:prep && docker build -t sro-demo-app:$(git rev-parse --short HEAD) -t sro-demo-app:latest . && npm ci",
     "format": "prettier --write \"src/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
