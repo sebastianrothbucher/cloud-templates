@@ -41,6 +41,7 @@ resource "aws_lambda_function" "nest-lambda" {
   environment {
     variables = {
       TEST_VAR = "${var.test-env-val}"
+      CORS_HOST = "${var.cors-host}"
     }
   }
 

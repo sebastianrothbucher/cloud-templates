@@ -2,12 +2,19 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import serverlessExpress from '@vendia/serverless-express'
 import { Callback, Context, Handler } from 'aws-lambda';
+import cors from 'cors';
 import { APP_VERSION } from './version';
 
 async function bootstrap() {
   const port = process.env.PORT || 3000;
   console.log('Starting version ' + APP_VERSION + ' on port ' + port);
   const app = await NestFactory.create(AppModule);
+  if (process.env.CORS_HOST) {
+    app.use(cors({ // simple cfg - can xtend
+      origin: process.env.CORS_HOST,
+      exposedHeaders: ['Etag'],
+    }))
+  }
   if (!process.env.LAMBDA_TASK_ROOT) {
     await app.listen(port);
   } else {

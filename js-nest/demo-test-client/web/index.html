@@ -1,0 +1,114 @@
+<html>
+<head>
+<title>OAuth Authorization Code + PKCE in Vanilla JS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+</head>
+
+<body>
+<div class="flex-center full-height">
+    <div class="content">
+        <a href="#" id="start">Click to Sign In</a> -
+        <a href="#" id="req">Click to fire off a request</a>
+        <div id="token" class="hidden">
+            <h2>Access Token</h2>
+            <div id="access_token" class="code"></div>
+            <pre id="access_token_details"></pre>
+            <h2>Refresh Token</h2>
+            <div id="refresh_token" class="code"></div>
+        </div>
+        <div id="error" class="hidden">
+            <h2>Error</h2>
+            <div id="error_details" class="code"></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@badgateway/oauth2-client@2.2.4/browser/oauth2-client.min.js" integrity="sha256-Zpw3IBP4vjX14/QEhebWiNV7JXgu3sF6dQsaYVBx890=" crossorigin="anonymous"></script>
+
+<script>
+
+// great article: https://developer.okta.com/blog/2019/05/01/is-the-oauth-implicit-flow-dead
+// great lib: https://www.npmjs.com/package/@badgateway/oauth2-client (didn't dig in yet, though)
+
+const client = new OAuth2Client.OAuth2Client({
+  server: 'https://sro-test-userpool.auth.eu-central-1.amazoncognito.com/', // slash counts!
+  clientId: '3h9508qf1shdb10l8b80r01t4c',
+  authorizationEndpoint: 'login', // Cognito
+  tokenEndpoint: 'token',
+});
+
+const redirectUri = 'http://localhost:8080/';
+
+// Initiate the PKCE Auth Code flow when the link is clicked
+document.getElementById("start").addEventListener("click", async function(e) {
+    const codeVerifier = await OAuth2Client.generateCodeVerifier();
+    localStorage.setItem("pkce_code_verifier", codeVerifier);
+    document.location = await client.authorizationCode.getAuthorizeUri({
+        redirectUri,
+        codeVerifier,
+        scope: ['openid'],
+    });
+});
+
+async function handleRedirectBack() {
+    if (!location.search?.includes('code')) {
+        return;
+    }
+    const codeVerifier = localStorage.getItem("pkce_code_verifier");
+    let oauth2Token
+    try {
+        oauth2Token = await client.authorizationCode.getTokenFromCodeRedirect(
+            document.location,
+            {
+                redirectUri,
+                codeVerifier,
+            }
+        );
+    } catch (error) {
+        alert("Error returned from authorization server: " + error);
+        document.getElementById("error_details").innerText = error;
+        document.getElementById("error").classList = "";
+        return;
+    }
+    localStorage.removeItem("pkce_code_verifier");
+    window.history.replaceState({}, null, "/");
+    displayToken(oauth2Token); // now we have the token    
+}
+handleRedirectBack();
+
+function displayToken(oauth2Token) {
+    document.getElementById("access_token").innerText = oauth2Token.accessToken;
+    const token = JSON.parse(atob(oauth2Token.accessToken.split('.')[1]))
+    document.getElementById("access_token_details").innerText = JSON.stringify(token, null, '  ');
+    document.getElementById("access_token_details").innerText += '\n\n';
+    document.getElementById("access_token_details").innerText += new Date(token.exp * 1000);
+    document.getElementById("refresh_token").innerText = oauth2Token.refreshToken;
+    document.getElementById("start").classList = "hidden";
+    document.getElementById("token").classList = "";
+}
+
+document.getElementById("req").addEventListener("click", async function(e) {
+    const fetchWrapper = new OAuth2Client.OAuth2Fetch({
+        client,
+        getNewToken: async () => {
+            const newOauth2Token = await client.refreshToken({refreshToken: document.getElementById("refresh_token").innerText});
+            displayToken(newOauth2Token);
+            return newOauth2Token;
+        },
+        onError: (error) => alert("Error returned from authorization server: " + error),
+    });
+    try {
+        const res = await fetchWrapper.fetch('https://3r8j15xgwa.execute-api.eu-central-1.amazonaws.com/nest-dev-stage/one');
+        const body = await res.text();
+        alert(body);
+    } catch (e) {
+        console.error(e);
+        alert(e);
+    }
+});
+
+</script>
+
+</body>
+</html>
