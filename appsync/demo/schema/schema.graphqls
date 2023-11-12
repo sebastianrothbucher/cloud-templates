@@ -1,0 +1,24 @@
+type ItemsResponse {
+    listid: ID!
+    items: [ListItem]
+}
+
+type ListItem {
+    listid: ID!
+    ts_uuid: ID!
+    title: String!
+    done: Boolean!
+}
+
+type Mutation {
+    putItem(listid: ID!, title: String!): ListItem
+}
+
+type Query {
+    items(listid: ID!): ItemsResponse
+}
+
+schema {
+    query: Query
+    mutation: Mutation
+}
